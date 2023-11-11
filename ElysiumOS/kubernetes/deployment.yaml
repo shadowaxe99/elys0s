@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elysiumos-deployment
+  labels:
+    app: elysiumos
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: elysiumos
+  template:
+    metadata:
+      labels:
+        app: elysiumos
+    spec:
+      containers:
+      - name: elysiumos
+        image: elysiumos:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "prod"
+        - name: ARBITRUM_RPC_URL
+          value: "https://arbitrum-rpc-url"
+        - name: ELYSIUM_TOKEN_CONTRACT_ADDRESS
+          value: "0xYourElysiumTokenContractAddress"
+        volumeMounts:
+        - name: elysiumos-config
+          mountPath: /config
+      volumes:
+      - name: elysiumos-config
+        configMap:
+          name: elysiumos-configmap
+      imagePullSecrets:
+      - name: regcred
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elysiumos-service
+spec:
+  selector:
+    app: elysiumos
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: LoadBalancer
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elysiumos-configmap
+data:
+  application.properties: |-
+    server.port=8080
+    elysiumos.blockchain.rpc-url=${ARBITRUM_RPC_URL}
+    elysiumos.token.contract-address=${ELYSIUM_TOKEN_CONTRACT_ADDRESS}
+    # Additional configuration properties can be added here
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: regcred
+data:
+  .dockerconfigjson: <your-base64-encoded-docker-auth-json>
+type: kubernetes.io/dockerconfigjson
